@@ -47,14 +47,10 @@ struct function functions[] = {
 // Your thread data structures go here
 
 struct thread_data{
-    // The first sample of the subset
-    long double *sample_first;
-    // The last sample of the subset
-    long double *sample_last;
-    // The distance to the next sample
-    size_t sample_step;
+    // Number of samples for the thread
+    size_t size;
     // Target function
-    long double (*f)(long double);
+    struct function *target;
     // The partial sum computed by the thread
     long double sum;
 };
@@ -114,18 +110,13 @@ void *monte_carlo_integrate_thread(void *args){
     // Reset the sum result
     data->sum = 0;
 
-    // Get the first sample
-    long double *sample = data->sample_first;
+    // Domain interval
+    long double interval = data->target->interval[1] - data->target->interval[0];
 
     // Go through every sample in the subset
-    while ( sample != data->sample_last ){
-
+    for ( size_t s = 0; s < data->size; s++ ){
         // Add the target function's value to the partial sum
-        data->sum += data->f(*sample);
-
-        // Go to the next sample (address addition)
-        sample += data->sample_step;
-
+        data->sum += data->target->f(data->target->interval[0] + (long double) rand() / (long double) RAND_MAX * interval);
     }
 
     pthread_exit(NULL);
@@ -201,18 +192,14 @@ int main(int argc, char **argv){
         // Remainder samples
         size_t remainder_samples = size % n_threads;
 
-        uniform_sample(target_function.interval, samples, size);
-
         // Configure data structure for each thread
         for (size_t t = 0; t < n_threads; t++){
-            thread_data_array[t].sample_first =  &samples[ t * samples_per_thread ];
-            thread_data_array[t].sample_last = thread_data_array[t].sample_first + samples_per_thread;
+            thread_data_array[t].size = samples_per_thread;
             if ( t == n_threads - 1 ){
                 // The last thread gets the remainder samples
-                thread_data_array[t].sample_last += remainder_samples;
+                thread_data_array[t].size += remainder_samples;
             }
-            thread_data_array[t].f = target_function.f;
-            thread_data_array[t].sample_step = 1;
+            thread_data_array[t].target = &target_function;
         }
 
         // Array to store the IDs of newly created threads
