@@ -47,12 +47,10 @@ struct function functions[] = {
 // Your thread data structures go here
 
 struct thread_data{
-    // The first sample of the subset
+    // Pointer to the first sample of the subset
     long double *sample_first;
-    // The last sample of the subset
+    // Pointer to the last sample of the subset
     long double *sample_last;
-    // The distance to the next sample
-    size_t sample_step;
     // Target function
     long double (*f)(long double);
     // The partial sum computed by the thread
@@ -124,7 +122,7 @@ void *monte_carlo_integrate_thread(void *args){
         data->sum += data->f(*sample);
 
         // Go to the next sample (address addition)
-        sample += data->sample_step;
+        sample++;
 
     }
 
@@ -201,18 +199,25 @@ int main(int argc, char **argv){
         // Remainder samples
         size_t remainder_samples = size % n_threads;
 
+        // Random sampling
         uniform_sample(target_function.interval, samples, size);
 
         // Configure data structure for each thread
         for (size_t t = 0; t < n_threads; t++){
+
+            // Start of the subset for the thread
             thread_data_array[t].sample_first =  &samples[ t * samples_per_thread ];
+
+            // End of the subset for the thread
             thread_data_array[t].sample_last = thread_data_array[t].sample_first + samples_per_thread;
+
             if ( t == n_threads - 1 ){
                 // The last thread gets the remainder samples
                 thread_data_array[t].sample_last += remainder_samples;
             }
+
+            // Target function
             thread_data_array[t].f = target_function.f;
-            thread_data_array[t].sample_step = 1;
         }
 
         // Array to store the IDs of newly created threads
