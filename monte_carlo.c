@@ -47,6 +47,16 @@ struct function functions[] = {
 // Your thread data structures go here
 
 struct thread_data{
+    // The first sample of the subset
+    long double *sample_first;
+    // The last sample of the subset
+    long double *sample_last;
+    // The distance to the next sample
+    size_t sample_step;
+    // Target function
+    long double (*f)(long double);
+    // The partial sum computed by the thread
+    long double sum;
 };
 
 struct thread_data *thread_data_array;
@@ -97,6 +107,27 @@ long double monte_carlo_integrate(long double (*f)(long double), long double *sa
 
 void *monte_carlo_integrate_thread(void *args){
     // Your pthreads code goes here
+
+    // Restore thread's data structure
+    struct thread_data *data = (struct thread_data*)args;
+
+    // Reset the sum result
+    data->sum = 0;
+
+    // Get the first sample
+    long double *sample = data->sample_first;
+
+    // Go through every sample in the subset
+    while ( sample != data->sample_last ){
+
+        // Add the target function's value to the partial sum
+        data->sum += data->f(*sample);
+
+        // Go to the next sample (address addition)
+        sample += data->sample_step;
+
+    }
+
     pthread_exit(NULL);
 }
 
@@ -161,8 +192,78 @@ int main(int argc, char **argv){
 
         // Your pthreads code goes here
 
-        printf("Not implemented yet\n");
-        exit(-1);
+        // Allocate data structures for all threads
+        thread_data_array = malloc(n_threads*sizeof(struct thread_data));
+
+        // The number of samples used by each thread
+        size_t samples_per_thread = size / n_threads;
+
+        // Remainder samples
+        size_t remainder_samples = size % n_threads;
+
+        uniform_sample(target_function.interval, samples, size);
+
+        // Configure data structure for each thread
+        for (size_t t = 0; t < n_threads; t++){
+            thread_data_array[t].sample_first =  &samples[ t * samples_per_thread ];
+            thread_data_array[t].sample_last = thread_data_array[t].sample_first + samples_per_thread;
+            if ( t == n_threads - 1 ){
+                // The last thread gets the remainder samples
+                thread_data_array[t].sample_last += remainder_samples;
+            }
+            thread_data_array[t].f = target_function.f;
+            thread_data_array[t].sample_step = 1;
+        }
+
+        // Array to store the IDs of newly created threads
+        pthread_t *thread_ids = malloc(n_threads*sizeof(pthread_t));
+
+        // Thread attributes
+        pthread_attr_t pthread_attr;
+
+        // On success, pthread_create() returns 0;
+        int pthread_return;
+
+        // Exit status of the target thread given by pthread_exit()
+        void *pthread_status;
+
+        // Initialize thread attributes object
+        pthread_attr_init(&pthread_attr);
+
+        // Set detach state attribute in thread attributes object
+        pthread_attr_setdetachstate(&pthread_attr, PTHREAD_CREATE_JOINABLE);
+
+        // Create threads
+        for(size_t t = 0; t < n_threads; t++){
+            pthread_return = pthread_create(&thread_ids[t], 
+                                            &pthread_attr, 
+                                            &monte_carlo_integrate_thread,
+                                            (void *)&thread_data_array[t]); 
+            if (pthread_return) {
+                printf("ERROR; return code from pthread_create() is %d\n", pthread_return);
+                exit(-1);
+            }
+        }
+
+        // Destroy thread attributes object
+        pthread_attr_destroy(&pthread_attr);
+
+        // The final sum
+        long double sum = 0;
+
+        // Wait for threads  to terminate
+        for(size_t t = 0; t < n_threads; t++){
+            pthread_return = pthread_join(thread_ids[t], &pthread_status);
+            if (pthread_return){
+                printf("ERROR; return code from pthread_join() is %d\n", pthread_return);
+                exit(-1);
+            }
+            // Sum up all partial sums
+            sum += thread_data_array[t].sum;
+        }
+
+        // Final result
+        estimate = sum / (long double)size;
 
         // Your pthreads code ends here
 
