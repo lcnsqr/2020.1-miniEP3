@@ -205,14 +205,14 @@ int main(int argc, char **argv){
 
         // Configure data structure for each thread
         for (size_t t = 0; t < n_threads; t++){
-            thread_data_array[t].sample_first =  &samples[ t * samples_per_thread ];
-            thread_data_array[t].sample_last = thread_data_array[t].sample_first + samples_per_thread;
+            thread_data_array[t].sample_first = &samples[t];
+            thread_data_array[t].sample_last = &samples[size - remainder_samples - n_threads + t];
             if ( t == n_threads - 1 ){
                 // The last thread gets the remainder samples
                 thread_data_array[t].sample_last += remainder_samples;
             }
             thread_data_array[t].f = target_function.f;
-            thread_data_array[t].sample_step = 1;
+            thread_data_array[t].sample_step = n_threads;
         }
 
         // Array to store the IDs of newly created threads
