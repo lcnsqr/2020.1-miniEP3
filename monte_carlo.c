@@ -117,6 +117,9 @@ void *monte_carlo_integrate_thread(void *args){
 
     // Go through every sample in the subset
     while ( sample != data->sample_last ){
+	
+	// Skip if sample == 1 (function will return infinity)
+	if ( *sample == 1 ) continue;
 
         // Add the target function's value to the partial sum
         data->sum += data->f(*sample);
@@ -264,12 +267,7 @@ int main(int argc, char **argv){
                 exit(-1);
             }
             // Sum up all partial sums
-            if ( thread_data_array[t].sum == INFINITY ){
-              printf("inf error thread %d\n", t);
-            }
-            else {
-              sum += thread_data_array[t].sum;
-            }
+            sum += thread_data_array[t].sum;
         }
 
         // Final result
