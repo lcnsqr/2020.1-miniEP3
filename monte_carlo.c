@@ -264,7 +264,12 @@ int main(int argc, char **argv){
                 exit(-1);
             }
             // Sum up all partial sums
-            sum += thread_data_array[t].sum;
+            if ( thread_data_array[t].sum == INFINITY ){
+              printf("inf error thread %d\n", t);
+            }
+            else {
+              sum += thread_data_array[t].sum;
+            }
         }
 
         // Final result
